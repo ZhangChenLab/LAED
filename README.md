@@ -10,7 +10,7 @@ LAED is an end-to-end deep learning approach for predicting leukemia type. It he
 
 ## Quick start: 
 To reproduce the experiments in our paper, please down the dataset from [here](https://figshare.com/articles/dataset/single_cell_dataset/19787371]). 
-The following example data are stored under a folder named DATA_DIRECTORY
+The following example data are stored under a folder named DATA_DIRECTORY. Data from same patients assigned to one folder, stored under the folder of the according leukemia type (ALL, AML, APL, CLL, CML).
 ```bash
 DATA_DIRECTORY/train/
 	├── ALL
