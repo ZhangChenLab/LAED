@@ -1,2 +1,2 @@
-LAED <img src="clam-logo.png](https://raw.githubusercontent.com/ZhangChenLab/LAED/main/README/OIG.png)" width="280px" align="right" />
+LAED <img src="https://github.com/ZhangChenLab/LAED/blob/main/README/OIG.png?raw=true" width="280px" align="right" />
 ===========
