@@ -1,6 +1,6 @@
 LAED <img src="https://github.com/ZhangChenLab/LAED/blob/main/README/OIG.png?raw=true" width="280px" align="right" />
 ===========
-***Leukemia Assessment via End-to-end Deep Learning** 
+**Leukemia Assessment via End-to-end Deep Learning** 
 LAED is an end-to-end deep learning approach for predicting leukemia type. It helps hematologists diagnose leukemia more accurately and efficiently by automatically identifying and classifying the different types of cells in marrow smears.
 
 ## Requirements: 
