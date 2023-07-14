@@ -9,4 +9,20 @@ LAED is an end-to-end deep learning approach for predicting leukemia type. It he
 * Python 3.10 
 
 ## Quick start: 
-To reproduce the experiments in our paper, please down the dataset from [here](https://figshare.com/articles/dataset/single_cell_dataset/19787371])
+To reproduce the experiments in our paper, please down the dataset from [here](https://figshare.com/articles/dataset/single_cell_dataset/19787371]). 
+The following example data are stored under a folder named DATA_DIRECTORY
+```bash
+DATA_DIRECTORY/train/
+	├── ALL
+	├── AML
+	├── APL
+	├── CLL
+	└── CML
+DATA_DIRECTORY/test/
+	├── ALL
+	├── AML
+	├── APL
+	├── CLL
+	└── CML
+```
+Data in one hospital are used to train model, three other hospitals are used to test model's performance. Moreover, the microscopy instruments used in these hospitals differed as well.
