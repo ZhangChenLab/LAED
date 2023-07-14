@@ -20,16 +20,15 @@ import glob
 from torchvision import transforms, utils
 from PIL import Image
 import GlobalManager as gm
-import xlrd
 import albumentations as A
-
+import torchvision.utils as vutils
 
 path=gm.get_value('path')
 
 
 normalize = transforms.Normalize(
-    mean=[0.3, 0.19, 0.4],
-    std=[0.33, 0.26, 0.43]
+    mean=[0.15, 0.35, 0.35],
+    std=[0.25, 0.26, 0.28]
 )    
 
 train_preprocess = transforms.Compose([
@@ -38,10 +37,11 @@ train_preprocess = transforms.Compose([
     transforms.RandomRotation(15),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
     transforms.ToTensor(),
-    normalize
+    # normalize,
 ]) 
 
 test_preprocess = transforms.Compose([
+    # transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.3),
     transforms.ToTensor(),
     normalize
 ]) 
@@ -60,7 +60,21 @@ transform = A.Compose([
 def MarrowLoader(path):
     img_pil =  Image.open(path).convert('RGB')
     img_pil = img_pil.resize((224,224))
+    # fn=str(np.random.randint(1000))+'.png'
+    # img_pil.save('H:/data/bone_marrow/k_bag_618/patch/'+fn, quality=95)
+    # print(img_pil.size)
     img_tensor = train_preprocess(img_pil)
+    # img_np=img_tensor.numpy()
+    # img_np=img_np-img_np.min()
+    # img_np=np.uint8(img_np/img_np.max()*255)
+    # print(img_np.shape)
+    # img_np = Image.fromarray(img_np)
+    # img_t = img_tensor.unsqueeze(0)
+
+    # 将张量保存为图片文件
+    # vutils.save_image(img_t, 'H:/data/bone_marrow/k_bag_618/patch/'+fn, normalize=True)
+    # img_tensor.save('H:/data/bone_marrow/k_bag_618/patch/'+fn)
+   
     return img_tensor
 def TestLoader(path):
     img_pil =  Image.open(path).convert('RGB')
@@ -74,7 +88,7 @@ class trainset(Dataset):
     def __getitem__(self, index):
         train_folder=gm.get_value('train_folder')
         target=0
-        im_list=glob.glob(os.path.join(train_folder,'*.png'))
+        im_list=glob.glob(os.path.join(train_folder,'*.tif'))
         index=np.random.randint(0,len(im_list),1)[0]
         fn = im_list[index]
         img = self.loader(fn)
@@ -90,12 +104,13 @@ class testset(Dataset):
     def __getitem__(self, index):
         train_folder=gm.get_value('train_folder')
         target=0
-        im_list=glob.glob(os.path.join(train_folder,'*.png'))
+        im_list=glob.glob(os.path.join(train_folder,'*.tif'))
         index=np.random.randint(0,len(im_list),1)[0]
         fn = im_list[index]
         self.test_image.append(fn)
         img = self.loader(fn)
         return img,target
     def __len__(self):
-        return len(self.images)
+        gm.set_value("test_image",self.test_image)
+        return 1000
     
