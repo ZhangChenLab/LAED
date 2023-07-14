@@ -1,4 +1,4 @@
-LAED <img src="https://github.com/ZhangChenLab/LAED/blob/main/README/OIG.png?raw=true" width="280px" align="right" />
+LAED <img src="/README/OIG.png" width="280px" align="right" />
 ===========
 ### Leukemia Assessment via End-to-end Deep Learning
 LAED is an end-to-end deep learning approach for predicting leukemia type. It helps hematologists diagnose leukemia more accurately and efficiently by automatically identifying and classifying the different types of cells in marrow smears.
@@ -31,3 +31,4 @@ For quick testing, you can downlaod pre-trained LAED from [here](https://figshar
 
 ## Custom dataset
 We recommend find the ROIs from WSIs and save the images at first. We also provide the pre-trained Mask-RCNN model to segment leukocytes, you can download from [here](https://figshare.com/articles/dataset/Trained_model/19787464). After the construction of single cell dataset for each patient, store the data as the format in **Quick start**.
+[segmentation]("/README/figure_2.png")
