@@ -14,6 +14,14 @@ The following example data are stored under a folder named DATA_DIRECTORY. Data 
 ```bash
 DATA_DIRECTORY/train/
 	├── ALL
+		├── Patinent-a
+			├── Leukocyte 1
+			├── Leukocyte 2
+			├── ....
+		├── Patinent-b
+			├── Leukocyte 1
+			├── Leukocyte 2
+			├── ....
 	├── AML
 	├── APL
 	├── CLL
@@ -28,7 +36,11 @@ DATA_DIRECTORY/test/
 Data in one hospital are used to train model, three other hospitals are used to test model's performance. Moreover, the microscopy instruments used in these hospitals differed as well.
 Before training the model, please download pre-trained CNN backbone from [here](https://figshare.com/articles/dataset/Trained_model/19787464).
 For quick testing, you can downlaod pre-trained LAED from [here](https://figshare.com/articles/dataset/Trained_model/19787464).
+```bash
+python MarrowTrain_batch_record.py --data_path DATA_DIRECTORY
+```bash
 
 ## Custom dataset
-We recommend find the ROIs from WSIs and save the images at first. We also provide the pre-trained Mask-RCNN model to segment leukocytes, you can download from [here](https://figshare.com/articles/dataset/Trained_model/19787464). After the construction of single cell dataset for each patient, store the data as the format in **Quick start**.
+We recommend users to find the ROIs from WSIs and save the images at first. We also provide the pre-trained Mask-RCNN model to segment leukocytes based on [Detectron2](https://github.com/facebookresearch/detectron2), you can download from [here](https://figshare.com/articles/dataset/Trained_model/19787464). For image segmentation. After the construction of single cell dataset for each patient, store the data as the format in **Quick start**.
 ![segmentation](/README/figure_2.png)
+In order to achieve the high leukemia type prediction accuracy, the more samples the better. Based on our experience, it is better to have an average of 300 or more leukocytes for each patient.
