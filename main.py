@@ -1,58 +1,55 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 17 00:22:16 2021
+Created on Fri Mar 11 01:41:33 2022
 
 @author: Administrator
 """
+
 
 from __future__ import print_function
 
 import numpy as np
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import argparse
 import torch
 import torch.utils.data as data_utils
 import torch.optim as optim
 from torch.autograd import Variable
-from MIL_model import resnext101_32x8d
+# from multi_head_resnet import resnext101_32x8d
+from MIL_model import resnext101_32x4d
+
+
 import GlobalManager as gm
-import xlrd
+import torch.nn as nn
+gm._init_()
+# gm.set_value("gl",batch_idx)
+from marrowdataloader import trainset,testset
+# from tensorboardX import SummaryWriter
 from tqdm import tqdm 
+import time
+# import scipy.io as scio
 
-# Training settings
-parser = argparse.ArgumentParser(description = 'MIL Leukemia Prediction Example')
 
-parser.add_argument('--data_path', type = str, default = 'D:/data/bone_marrow/training/single_cell_dataset', metavar = 'Path', 
-                    help = 'location of single cell dataset')
-parser.add_argument('--info_path', type = str, default = 'D:/data/bone_marrow/info.xlsx', metavar = 'Path', 
-                    help = 'location of dataset information')
-parser.add_argument('--pretrained_model', type = str, default = 'D:/program/AttentionDeepMIL-master/marrow_class_resnext101_20220202.pth', metavar = 'Path', 
-                    help = 'pretrained CNN backbone model')
-parser.add_argument('--epochs', type = int, default = 30, metavar = 'N',
-                    help = 'number of epochs to train (default: 20)')
-parser.add_argument('--lr', type = float, default = 1e-5, metavar = 'LR',
-                    help = 'learning rate (default: 10e-5)')
-parser.add_argument('--step_size', type = int, default = 10,
-                    help = 'period of learning rate decay (default: 10)')
-parser.add_argument('--gamma', type = float, default = 0.1,
-                    help = 'factor of learning rate decay (default: 0.1)')
-parser.add_argument('--reg', type = float, default = 10e-5, metavar = 'R',
-                    help = 'weight decay')
-parser.add_argument('--type_number', type = int, default = 5, metavar = 'T',
-                    help = 'bags have a positive labels for leukemia type')
-parser.add_argument('--bag_length', type = int, default = 64, metavar = 'ML',
-                    help = 'average bag length')
-parser.add_argument('--var_bag_length', type = int, default = 0, metavar = 'VL',
-                    help = 'variance of bag length')
-parser.add_argument('--train_iteration', type = int, default = 1000, metavar = 'NTrain',
-                    help = 'repeat sampling for prediction')
-parser.add_argument('--testing_repeat_time', type = int, default = 21, metavar = 'NTest',
-                    help = 'repeat sampling for prediction')
-parser.add_argument('--seed', type = int, default = 1, metavar = 'S',
-                    help = 'random seed (default: 1)')
-parser.add_argument('--no-cuda', action = 'store_true', default = False,
-                    help = 'disables CUDA training')
-
+# Training settings 
+parser = argparse.ArgumentParser(description='Leukemia type prediction using deep learning')
+parser.add_argument('--data_path', type=str,
+                    help='number of epochs to train (default: 20)')
+parser.add_argument('--epochs', type=int, default=30, metavar='N',
+                    help='number of epochs to train (default: 20)')
+parser.add_argument('--lr', type=float, default=2*10e-5, metavar='LR',
+                    help='learning rate (default: 0.0005)')
+parser.add_argument('--reg', type=float, default=10e-5, metavar='R',
+                    help='weight decay')
+parser.add_argument('--bag_length', type=int, default=256, metavar='ML',
+                    help='average bag length')
+parser.add_argument('--var_bag_length', type=int, default=0, metavar='VL',
+                    help='variance of bag length')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                    help='random seed (default: 1)')
+parser.add_argument('--no-cuda', action='store_true', default=False,
+                    help='disables CUDA training')
+parser.add_argument('--model', type=str, default='attention', help='Choose b/w attention and gated_attention')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -61,141 +58,136 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
     print('\nGPU is ON!')
-    
-def main(args):    
-    loader_kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
-    
-    data_info = args.info_path
-    wb = xlrd.open_workbook(data_info)
-    table = wb.sheet_by_name('Sheet1')
-    type_info = {}
-    for i in range(table.nrows):
-        x = table.cell(i,1).value
-        y = table.cell(i,0).value
-        type_info[y] = x
-        
-    data_path = args.data_path    
-    type_list = os.listdir(os.path.join(data_path,'train'))
-    gm._init_()
-    gm.set_value("path",data_path)
-    from marrowdataloader import trainset,testset
-    print('Load Train Set')
-    train_loader = data_utils.DataLoader(trainset(),
-                                         batch_size = args.bag_length,
-                                         shuffle = True,
-                                         **loader_kwargs)
 
-    
-    print('Init Model')
-    
-    
-    model = resnext101_32x8d(num_classes = 21,pretrained = True, pretrained_model = args.pretrained_model)
-    model.fc = torch.nn.Linear(2048, 1024, bias = True)
-    if args.cuda:
-        model.cuda()
-    
-    
-    optimizer = optim.Adam(model.parameters(), lr = args.lr, betas = (0.9, 0.999), weight_decay = args.reg)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, args.step_size, gamma = args.gamma, last_epoch = -1)
-    train_loss_fn = torch.nn.CrossEntropyLoss().cuda()
-    
-    type_idx = int(np.random.randint(0,len(type_list),1))
-    folder_list = os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
-    folder_idx = int(np.random.randint(0,len(folder_list),1))
-    train_folder = os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
-    gm.set_value("train_folder",train_folder)
-    for epoch in range(1, args.epochs + 1):
-        train_loss = 0.
-        train_error = 0.
-        with tqdm(total = args.train_iteration) as t: 
-            count = 0
-            for batch_idx, (data, instance_label) in enumerate(train_loader):
-                optimizer.zero_grad()
-                label = torch.tensor([type_idx])
-    
-                if args.cuda:
-                    data = data.cuda()
-                data = Variable(data)
-                if args.cuda:
-                    data, label = data.cuda(), label.cuda()
-    
-                data = Variable(data)
-                output_sum = model(data)
-                output = output_sum[0]
-                target = label.long()
-                loss = train_loss_fn(output,target)
-                train_loss +=  loss.data
-                correct = output.argmax().eq(target.view_as(output.argmax())).sum().item()
-                train_error += 1-correct
-                t.update(1)
-                t.set_description('Iteration %i' % count)
-                t.set_postfix(loss = loss.item(),error = train_error/(count+1))
-                loss.backward()
-                optimizer.step()
-                count += 1
-                if count>args.train_iteration:
-                    break
-                type_idx = int(np.random.randint(0,len(type_list),1))
-                folder_list = os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
-                folder_idx = int(np.random.randint(0,len(folder_list),1))
-                train_folder = os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
-                gm.set_value("train_folder",train_folder)
-                
-        scheduler.step()
-        t.close()
-        train_loss /=  (count+1)
-        train_error /=  (count+1)
-        print('Epoch: {}, Loss: {:.4f}, Train error: {:.4f}, lr: {:.7f}'.format(epoch, train_loss, train_error, optimizer.state_dict()['param_groups'][0]['lr']))
-        
-        
-    print('Load Test Set')
-    test_loader = data_utils.DataLoader(testset(),
-                                         batch_size = args.bag_length,
-                                         shuffle = True,
-                                         **loader_kwargs)  
-    
-    folder_list = os.listdir(os.path.join(data_path,'test'))
-    repeat = args.testing_repeat_time
-    cm = np.zeros([5,5])
-    ouput_record = np.zeros([repeat])-1
-    folder_list = os.listdir(os.path.join(data_path,'test'))
-    cm = np.zeros([args.type_number,args.type_number])
-    acc = 0
-    fn = 0
-    bag_label = -1
-    with torch.no_grad():
-        for folder in folder_list:
-            bag_label += 1
-            test_list = os.listdir(os.path.join(data_path,'test',folder))
-            fn += len(test_list)
-            for file in test_list:
-                test_folder = os.path.join(data_path,'test',folder,file)
-                gm.set_value("train_folder",test_folder)
-                count = 0
-                tp = 0
-                for batch_idx, (data, label) in enumerate(test_loader):
-                    target = torch.tensor([bag_label]).long()          
-                    if args.cuda:
-                        data = data.cuda()
-                    data = Variable(data)
-                    output_sum = model(data)
-                    output = output_sum[0]
-                    pred = output_sum[2][0].cpu().numpy()[0]
-                    ouput_record[count] = pred
-                    count += 1
-                    ouput_record = np.uint8(ouput_record)    
-                    type_counts = np.bincount(ouput_record)
-                    pred_res = np.argmax(output.cpu().numpy()[0])
-                    if pred_res == target.cpu().numpy()[0]:
-                        tp+=1
-                    if count>=repeat:
-                        break
-                if tp/repeat>0.5:
-                    acc+=1
-                cm[bag_label,np.argmax(type_counts)]+=1
-        print('accuracy: '+str(acc/fn))
-        torch.save(model, './best_mode.pth') #
+print('Load Train and Test Set')
+loader_kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 
-if __name__  ==  "__main__":
-    results = main(args)
-    print("finished!")
+print('Init Model')
+
+data_path=args.data_path
+type_list=os.listdir(os.path.join(data_path,'train'))
+training_loss=np.zeros([args.epochs])
+testing_loss=np.zeros([args.epochs])
+training_time=np.zeros([args.epochs])
+model=resnext101_32x4d(num_classes=21,pretrained=True)
+train_loader = data_utils.DataLoader(trainset(),
+                                     batch_size=args.bag_length,
+                                     shuffle=True,
+                                     **loader_kwargs)
+model.fc = torch.nn.Linear(2048, 1024, bias=True)
+if args.cuda:
+    model.cuda()
+iteration=0
+for fn in os.listdir(os.path.join(data_path,'train')):
+    iteration+=len(os.listdir(os.path.join(data_path,'train',fn)))
+optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), weight_decay=args.reg)
+scheduler = optim.lr_scheduler.StepLR(optimizer, 20, gamma=0.1, last_epoch=-1)
+train_loss_fn = torch.nn.CrossEntropyLoss().cuda()
+fc=[]
+type_idx=int(np.random.randint(0,len(type_list),1))
+folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
+folder_idx=int(np.random.randint(0,len(folder_list),1))
+train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
+gm.set_value("train_folder",train_folder)
+for epoch in range(1, args.epochs + 1):
+    train_loss = 0.
+    train_error = 0.
+    count=0
+    t1=time.time()
+    with tqdm(total=iteration) as t: 
+        for batch_idx, (data, label) in enumerate(train_loader):
+            bag_label = label
+            # reset gradients
+            optimizer.zero_grad()
+            # label = label.cuda()
+            label = torch.tensor([type_idx]).cuda()
+            # # calculate loss and metrics
+            if max(label)==1:
+                bag_in_label=torch.tensor([1]).long()
+            elif max(label)==2:
+                bag_in_label=torch.tensor([2]).long()
+            elif max(label)==3:
+                bag_in_label=torch.tensor([3]).long()
+            elif max(label)==4:
+                bag_in_label=torch.tensor([4]).long()
+            else:
+                bag_in_label=torch.tensor([0]).long()
+            if args.cuda:
+                data, bag_label = data.cuda(), bag_label.cuda()
+            bag_in_label=bag_in_label.cuda()
+            data, bag_in_label = Variable(data), Variable(bag_in_label)                    
+            output_sum=model(data)
+            output=output_sum[0]
+
+            type_idx=int(np.random.randint(0,len(type_list),1))
+            folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
+            folder_idx=int(np.random.randint(0,len(folder_list),1))
+            train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
+            gm.set_value("train_folder",train_folder)
+            target=label.cuda()
+
+            loss=train_loss_fn(output,bag_in_label)
+            train_loss += loss.data
+            correct = output.argmax().eq(target.view_as(output.argmax())).sum().item()
+            train_error+=1-correct
+            loss.backward()
+            optimizer.step()
+            t.set_description('Processing epoch: '+str(epoch)+' train loss: '+str(train_loss/count))
+            t.update(1)
+            count+=1
+            if count>iteration:
+                training_time[epoch-1]=time.time()-t1
+                break
+    scheduler.step()
+    train_loss /= (count+1)
+    train_error /= (count+1)
+    training_loss[epoch-1]=train_loss # record the training loss
+       
+
+test_loader = data_utils.DataLoader(testset(),
+                                     batch_size=args.bag_length,
+                                     shuffle=True,
+                                     **loader_kwargs) 
+pred_type='test'
+folder_list=os.listdir(os.path.join(data_path,pred_type))
+fn=0
+test_loss=0
+bag_label=-1
+tp=0
+res_sum=np.zeros([0,6])
+c=0
+cm=np.zeros([5,5])
+with torch.no_grad():
+    for folder in folder_list:
+        bag_label+=1
+        test_list=os.listdir(os.path.join(data_path,pred_type,folder))
+        fn+=len(test_list)
+        for file in test_list:
+            test_folder=os.path.join(data_path,pred_type,folder,file)           
+            gm.set_value("train_folder",test_folder)
+            count=0
+            
+            for batch_idx, (data, label) in enumerate(test_loader):
+                target=torch.tensor([batch_idx]).long()
+                if args.cuda:
+                    data,target = data.cuda(),target.cuda()
+                data = Variable(data)                       
+                output_sum=model(data)
+                output=output_sum[0]
+                loss=train_loss_fn(output,target)
+                test_loss += loss.data
+                pred_res=np.argmax(output.cpu().numpy()[0])
+                label_output=np.append([[bag_label]],output.cpu().numpy(),1)
+                res_sum=np.append(res_sum,label_output,0)
+                c+=1
+                cm[target.cpu().numpy()[0],pred_res]+=1
+                if pred_res==target.cpu().numpy()[0]:
+                    tp+=1  
+                break
+# test_loss=test_loss/fn
+# print('test_loss: '+str(test_loss))
+# print('acc: '+str(tp/fn))
+# print(cm)
+# testing_loss[epoch-1]=test_loss # record the training loss
+# torch.save(model, 'D:/data/bone_marrow/mil_output/models/k_'+str(k)+'_'+str(bag_length)+'.pth') # 
+# scio.savemat('D:/data/bone_marrow/mil_output/models/k_'+str(k)+'_'+str(bag_length)+'.mat', {'res_sum':res_sum})

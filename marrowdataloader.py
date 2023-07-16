@@ -20,7 +20,7 @@ import glob
 from torchvision import transforms, utils
 from PIL import Image
 import GlobalManager as gm
-import albumentations as A
+# import albumentations as A
 import torchvision.utils as vutils
 
 path=gm.get_value('path')
@@ -46,15 +46,15 @@ test_preprocess = transforms.Compose([
     normalize
 ]) 
 
-transform = A.Compose([
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5),
-    A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, brightness_by_max=True, always_apply=False, p=0.5),
-    A.GaussNoise (var_limit=(50.0, 300.0), mean=0, always_apply=False, p=0.2),
-    A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.05, 0.3), always_apply=False, p=0.2),
-    A.MultiplicativeNoise (multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.2),
-    A.Downscale (scale_min=0.75, scale_max=0.9, interpolation=0, always_apply=False, p=0.2)
-    ],)
+# transform = A.Compose([
+#     A.HorizontalFlip(p=0.5),
+#     A.VerticalFlip(p=0.5),
+#     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, brightness_by_max=True, always_apply=False, p=0.5),
+#     A.GaussNoise (var_limit=(50.0, 300.0), mean=0, always_apply=False, p=0.2),
+#     A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.05, 0.3), always_apply=False, p=0.2),
+#     A.MultiplicativeNoise (multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.2),
+#     A.Downscale (scale_min=0.75, scale_max=0.9, interpolation=0, always_apply=False, p=0.2)
+#     ],)
        
         
 def MarrowLoader(path):
