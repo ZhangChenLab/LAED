@@ -21,8 +21,18 @@ DATA_DIRECTORY/train/
 		├── Patinent-b
 			├── Leukocyte 1
 			├── Leukocyte 2
-			├── ....
+			├── ...
+		├── ...
 	├── AML
+		├── Patinent-c
+			├── Leukocyte 1
+			├── Leukocyte 2
+			├── ....
+		├── Patinent-d
+			├── Leukocyte 1
+			├── Leukocyte 2
+			├── ...
+		├── ...
 	├── APL
 	├── CLL
 	└── CML
@@ -38,7 +48,7 @@ Before training the model, please download pre-trained CNN backbone from [here](
 For quick testing, you can downlaod pre-trained LAED from [here](https://figshare.com/articles/dataset/Trained_model/19787464).
 ```bash
 python MarrowTrain_batch_record.py --data_path DATA_DIRECTORY
-```bash
+```
 
 ## Custom dataset
 We recommend users to find the ROIs from WSIs and save the images at first. We also provide the pre-trained Mask-RCNN model to segment leukocytes based on [Detectron2](https://github.com/facebookresearch/detectron2), you can download from [here](https://figshare.com/articles/dataset/Trained_model/19787464). For image segmentation. After the construction of single cell dataset for each patient, store the data as the format in **Quick start**.
