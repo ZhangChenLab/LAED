@@ -47,7 +47,7 @@ Data in one hospital are used to train model, three other hospitals are used to 
 Before training the model, please download pre-trained CNN backbone from [here](https://figshare.com/articles/dataset/Trained_model/19787464).
 For quick testing, you can downlaod pre-trained LAED from [here](https://figshare.com/articles/dataset/Trained_model/19787464).
 ```bash
-python MarrowTrain_batch_record.py --data_path DATA_DIRECTORY
+python main.py --data_path DATA_DIRECTORY
 ```
 
 ## Custom dataset
