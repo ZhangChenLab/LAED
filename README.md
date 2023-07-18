@@ -54,7 +54,8 @@ python main.py --data_path DATA_DIRECTORY
 We recommend users to find the ROIs from WSIs and save the images at first. We also provide the pre-trained Mask-RCNN model to segment leukocytes based on [Detectron2](https://github.com/facebookresearch/detectron2), you can download from [here](https://figshare.com/articles/dataset/Trained_model/19787464). For image segmentation. After the construction of single cell dataset for each patient, store the data as the format in **Quick start**.
 ![segmentation](/README/figure_2.png)
 In order to achieve the high leukemia type prediction accuracy, the more samples the better. Based on our experience, it is better to have an average of 300 or more leukocytes for each patient.
-For [Detectron2](https://github.com/facebookresearch/detectron2) installing  on the Windos system, please use the released v0.6. Open /detectron2-0.6/detectron2/layers/csrc/nms_rotated/nms_rotated_cuda.cu with Notepad.
+For [Detectron2](https://github.com/facebookresearch/detectron2) installing  on the Windos system, please use the released v0.6, and follow the instructions below to deploy. 
+Open /detectron2-0.6/detectron2/layers/csrc/nms_rotated/nms_rotated_cuda.cu with Notepad.
 Replace the code:
 ```bash
 // Copyright (c) Facebook, Inc. and its affiliates.
