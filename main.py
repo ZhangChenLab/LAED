@@ -2,7 +2,7 @@
 """
 Created on Fri Mar 11 01:41:33 2022
 
-@author: Administrator
+@author: yangzhen
 """
 
 
@@ -16,35 +16,32 @@ import torch
 import torch.utils.data as data_utils
 import torch.optim as optim
 from torch.autograd import Variable
-# from multi_head_resnet import resnext101_32x8d
-from MIL_model import resnext101_32x4d
-
-
+from models.model_laed import resnext101_32x4d
 import GlobalManager as gm
-import torch.nn as nn
 gm._init_()
-# gm.set_value("gl",batch_idx)
 from marrowdataloader import trainset,testset
-# from tensorboardX import SummaryWriter
 from tqdm import tqdm 
 import time
-# import scipy.io as scio
+from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import LabelBinarizer
 
 
 # Training settings 
 parser = argparse.ArgumentParser(description='Leukemia type prediction using deep learning')
-parser.add_argument('--data_path', type=str,
-                    help='number of epochs to train (default: 20)')
-parser.add_argument('--epochs', type=int, default=30, metavar='N',
-                    help='number of epochs to train (default: 20)')
+parser.add_argument('--data_path', type=str, default='',
+                    help='path to dataset')
+parser.add_argument('--num_classes', type=int, default=5, metavar='N',
+                    help='number of label classes')
+parser.add_argument('--epochs', type=int, default=1, metavar='N',
+                    help='number of epochs to train (default: 30)')
 parser.add_argument('--lr', type=float, default=2*10e-5, metavar='LR',
-                    help='learning rate (default: 0.0005)')
+                    help='learning rate (default: 0.00002)')
 parser.add_argument('--reg', type=float, default=10e-5, metavar='R',
                     help='weight decay')
-parser.add_argument('--bag_length', type=int, default=256, metavar='ML',
+parser.add_argument('--bag_length', type=int, default=32, metavar='ML',
                     help='average bag length')
-parser.add_argument('--var_bag_length', type=int, default=0, metavar='VL',
-                    help='variance of bag length')
+parser.add_argument('--backbone_checkpoint', type=str, default='',
+                    help='average bag length')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -59,7 +56,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
     print('\nGPU is ON!')
 
-print('Load Train and Test Set')
+print('Load Train Set')
 loader_kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 
 print('Init Model')
@@ -69,7 +66,7 @@ type_list=os.listdir(os.path.join(data_path,'train'))
 training_loss=np.zeros([args.epochs])
 testing_loss=np.zeros([args.epochs])
 training_time=np.zeros([args.epochs])
-model=resnext101_32x4d(num_classes=21,pretrained=True)
+model=resnext101_32x4d(backbone_path=args.backbone_checkpoint,num_classes=args.num_classes)
 train_loader = data_utils.DataLoader(trainset(),
                                      batch_size=args.bag_length,
                                      shuffle=True,
@@ -97,38 +94,22 @@ for epoch in range(1, args.epochs + 1):
     with tqdm(total=iteration) as t: 
         for batch_idx, (data, label) in enumerate(train_loader):
             bag_label = label
-            # reset gradients
             optimizer.zero_grad()
-            # label = label.cuda()
             label = torch.tensor([type_idx]).cuda()
-            # # calculate loss and metrics
-            if max(label)==1:
-                bag_in_label=torch.tensor([1]).long()
-            elif max(label)==2:
-                bag_in_label=torch.tensor([2]).long()
-            elif max(label)==3:
-                bag_in_label=torch.tensor([3]).long()
-            elif max(label)==4:
-                bag_in_label=torch.tensor([4]).long()
-            else:
-                bag_in_label=torch.tensor([0]).long()
             if args.cuda:
                 data, bag_label = data.cuda(), bag_label.cuda()
-            bag_in_label=bag_in_label.cuda()
-            data, bag_in_label = Variable(data), Variable(bag_in_label)                    
+            bag_label=label.long()
+            data, bag_label = Variable(data), Variable(bag_label)                    
             output_sum=model(data)
             output=output_sum[0]
-
             type_idx=int(np.random.randint(0,len(type_list),1))
             folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
             folder_idx=int(np.random.randint(0,len(folder_list),1))
             train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
             gm.set_value("train_folder",train_folder)
-            target=label.cuda()
-
-            loss=train_loss_fn(output,bag_in_label)
+            loss=train_loss_fn(output,bag_label)
             train_loss += loss.data
-            correct = output.argmax().eq(target.view_as(output.argmax())).sum().item()
+            correct = output.argmax().eq(bag_label.view_as(output.argmax())).sum().item()
             train_error+=1-correct
             loss.backward()
             optimizer.step()
@@ -184,10 +165,18 @@ with torch.no_grad():
                 if pred_res==target.cpu().numpy()[0]:
                     tp+=1  
                 break
-# test_loss=test_loss/fn
-# print('test_loss: '+str(test_loss))
-# print('acc: '+str(tp/fn))
-# print(cm)
-# testing_loss[epoch-1]=test_loss # record the training loss
-# torch.save(model, 'D:/data/bone_marrow/mil_output/models/k_'+str(k)+'_'+str(bag_length)+'.pth') # 
-# scio.savemat('D:/data/bone_marrow/mil_output/models/k_'+str(k)+'_'+str(bag_length)+'.mat', {'res_sum':res_sum})
+ 
+# Convert the true labels into binary format
+lb = LabelBinarizer()
+y_true_bin = lb.fit_transform(res_sum[:,0])
+
+# Calculate the AUC for each class 
+auc_scores = []
+for i in range(y_true_bin.shape[1]):
+    auc_scores.append(roc_auc_score(y_true_bin[:, i], res_sum[:,i+1]))
+
+# calculate macro-AUC
+macro_auc = sum(auc_scores) / len(auc_scores)
+
+print("AUC scores for each class:", auc_scores)
+print("Macro-AUC:", macro_auc)
