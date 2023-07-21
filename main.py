@@ -32,13 +32,13 @@ parser.add_argument('--data_path', type=str, default='',
                     help='path to dataset')
 parser.add_argument('--num_classes', type=int, default=5, metavar='N',
                     help='number of label classes')
-parser.add_argument('--epochs', type=int, default=1, metavar='N',
+parser.add_argument('--epochs', type=int, default=30, metavar='N',
                     help='number of epochs to train (default: 30)')
-parser.add_argument('--lr', type=float, default=2*10e-5, metavar='LR',
+parser.add_argument('--lr', type=float, default=2e-5, metavar='LR',
                     help='learning rate (default: 0.00002)')
 parser.add_argument('--reg', type=float, default=10e-5, metavar='R',
                     help='weight decay')
-parser.add_argument('--bag_length', type=int, default=32, metavar='ML',
+parser.add_argument('--bag_length', type=int, default=128, metavar='ML',
                     help='average bag length')
 parser.add_argument('--backbone_checkpoint', type=str, default='',
                     help='average bag length')
@@ -93,20 +93,13 @@ for epoch in range(1, args.epochs + 1):
     t1=time.time()
     with tqdm(total=iteration) as t: 
         for batch_idx, (data, label) in enumerate(train_loader):
-            bag_label = label
             optimizer.zero_grad()
-            label = torch.tensor([type_idx]).cuda()
+            bag_label=torch.tensor([type_idx]).long()
             if args.cuda:
                 data, bag_label = data.cuda(), bag_label.cuda()
-            bag_label=label.long()
             data, bag_label = Variable(data), Variable(bag_label)                    
             output_sum=model(data)
             output=output_sum[0]
-            type_idx=int(np.random.randint(0,len(type_list),1))
-            folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
-            folder_idx=int(np.random.randint(0,len(folder_list),1))
-            train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
-            gm.set_value("train_folder",train_folder)
             loss=train_loss_fn(output,bag_label)
             train_loss += loss.data
             correct = output.argmax().eq(bag_label.view_as(output.argmax())).sum().item()
@@ -116,6 +109,12 @@ for epoch in range(1, args.epochs + 1):
             t.set_description('Processing epoch: '+str(epoch)+' train loss: '+str(train_loss/count))
             t.update(1)
             count+=1
+            
+            type_idx=int(np.random.randint(0,len(type_list),1))
+            folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
+            folder_idx=int(np.random.randint(0,len(folder_list),1))
+            train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
+            gm.set_value("train_folder",train_folder)
             if count>iteration:
                 training_time[epoch-1]=time.time()-t1
                 break
