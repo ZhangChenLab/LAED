@@ -198,6 +198,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        print(backnone_fc)
         self.fc = nn.Linear(512 * block.expansion, backnone_fc)
 
         size = [1024, 512, 256]
@@ -313,7 +314,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model = ResNet(block, layers, **kwargs)
+    model = ResNet(block, layers, backnone_fc, num_classes, **kwargs)
     if len(backbone_path)>0:
         model.load_state_dict(torch.load(backbone_path), strict=False)    
     return model
@@ -321,7 +322,7 @@ def _resnet(
 
 
 
-def resnext101_32x4d(progress: bool = True, backbone_path: str='', backnone_fc: int=1000, num_classes: int=5, **kwargs: Any) -> ResNet:
+def resnext101_32x4d(progress: bool = True, backbone_path: str='', backnone_fc: int=21, num_classes: int=5, **kwargs: Any) -> ResNet:
     r"""ResNeXt-101 32x8d model from
     `"Aggregated Residual Transformation for Deep Neural Networks" <https://arxiv.org/pdf/1611.05431.pdf>`_.
 
