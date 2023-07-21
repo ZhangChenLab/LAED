@@ -7,3 +7,5 @@ pillow
 umap
 matplotlib
 tqdm
+scipy
+scikit-learn
