@@ -47,7 +47,7 @@ Data in one hospital are used to train model, three other hospitals are used to 
 Before training the model, please download pre-trained CNN backbone from [here](https://figshare.com/articles/dataset/Trained_model/19787464).  
 For quick testing, you can downlaod pre-trained LAED from [here](https://figshare.com/articles/dataset/Trained_model/19787464).  
 ```bash
-python main.py --data_path DATA_DIRECTORY --backbone_checkpoint BACKBONE_DIRECTORY --bag_length 128 --epochs 30
+python main.py --data_path DATA_DIRECTORY --backbone_checkpoint BACKBONE_DIRECTORY --train_bag_length 128 --epochs 30
 ```
 
 ## Custom dataset
