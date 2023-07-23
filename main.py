@@ -28,7 +28,7 @@ from sklearn.preprocessing import LabelBinarizer
 
 # Training settings 
 parser = argparse.ArgumentParser(description='Leukemia type prediction using deep learning')
-parser.add_argument('--data_path', type=str, default='D:/data/bone_marrow/dataset/k_bag_618/external_validation_dataset',
+parser.add_argument('--data_path', type=str, default='',
                     help='path to dataset')
 parser.add_argument('--num_classes', type=int, default=5, metavar='N',
                     help='number of label classes')
@@ -42,7 +42,7 @@ parser.add_argument('--train_bag_length', type=int, default=128, metavar='ML',
                     help='average bag length')
 parser.add_argument('--test_bag_length', type=int, default=1024, metavar='ML',
                     help='average bag length')
-parser.add_argument('--backbone_checkpoint', type=str, default='D:/programming/Leukemia_Diagnosis-main/model_best.pth',
+parser.add_argument('--backbone_checkpoint', type=str, default='',
                     help='average bag length')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
