@@ -28,7 +28,7 @@ from sklearn.preprocessing import LabelBinarizer
 
 # Training settings 
 parser = argparse.ArgumentParser(description='Leukemia type prediction using deep learning')
-parser.add_argument('--data_path', type=str, default='',
+parser.add_argument('--data_path', type=str, default='D:/data/bone_marrow/dataset/k_bag_618/external_validation_dataset',
                     help='path to dataset')
 parser.add_argument('--num_classes', type=int, default=5, metavar='N',
                     help='number of label classes')
@@ -36,17 +36,18 @@ parser.add_argument('--epochs', type=int, default=30, metavar='N',
                     help='number of epochs to train (default: 30)')
 parser.add_argument('--lr', type=float, default=2e-5, metavar='LR',
                     help='learning rate (default: 0.00002)')
-parser.add_argument('--reg', type=float, default=10e-5, metavar='R',
+parser.add_argument('--reg', type=float, default=1e-5, metavar='R',
                     help='weight decay')
-parser.add_argument('--bag_length', type=int, default=128, metavar='ML',
+parser.add_argument('--train_bag_length', type=int, default=128, metavar='ML',
                     help='average bag length')
-parser.add_argument('--backbone_checkpoint', type=str, default='',
+parser.add_argument('--test_bag_length', type=int, default=1024, metavar='ML',
+                    help='average bag length')
+parser.add_argument('--backbone_checkpoint', type=str, default='D:/programming/Leukemia_Diagnosis-main/model_best.pth',
                     help='average bag length')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
-parser.add_argument('--model', type=str, default='attention', help='Choose b/w attention and gated_attention')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -68,7 +69,7 @@ testing_loss=np.zeros([args.epochs])
 training_time=np.zeros([args.epochs])
 model=resnext101_32x4d(backbone_path=args.backbone_checkpoint,num_classes=args.num_classes)
 train_loader = data_utils.DataLoader(trainset(),
-                                     batch_size=args.bag_length,
+                                     batch_size=args.train_bag_length,
                                      shuffle=True,
                                      **loader_kwargs)
 model.fc = torch.nn.Linear(2048, 1024, bias=True)
@@ -93,28 +94,33 @@ for epoch in range(1, args.epochs + 1):
     t1=time.time()
     with tqdm(total=iteration) as t: 
         for batch_idx, (data, label) in enumerate(train_loader):
+            
             optimizer.zero_grad()
+            label = torch.tensor([type_idx]).cuda()
+            # bag_label = label
             bag_label=torch.tensor([type_idx]).long()
             if args.cuda:
                 data, bag_label = data.cuda(), bag_label.cuda()
+           
             data, bag_label = Variable(data), Variable(bag_label)                    
             output_sum=model(data)
             output=output_sum[0]
-            loss=train_loss_fn(output,bag_label)
-            train_loss += loss.data
-            correct = output.argmax().eq(bag_label.view_as(output.argmax())).sum().item()
-            train_error+=1-correct
-            loss.backward()
-            optimizer.step()
-            t.set_description('Processing epoch: '+str(epoch)+' train loss: '+str(train_loss/count))
-            t.update(1)
-            count+=1
             
             type_idx=int(np.random.randint(0,len(type_list),1))
             folder_list=os.listdir(os.path.join(data_path,'train',type_list[type_idx]))
             folder_idx=int(np.random.randint(0,len(folder_list),1))
             train_folder=os.path.join(data_path,'train',type_list[type_idx],folder_list[folder_idx])
             gm.set_value("train_folder",train_folder)
+            
+            loss=train_loss_fn(output,bag_label)
+            train_loss += loss.data
+            correct = output.argmax().eq(label.view_as(output.argmax())).sum().item()
+            train_error+=1-correct
+            loss.backward()
+            optimizer.step()
+            t.set_description('Processing epoch: '+str(epoch)+' train loss: '+str(train_loss/count))
+            t.update(1)
+            count+=1
             if count>iteration:
                 training_time[epoch-1]=time.time()-t1
                 break
@@ -123,11 +129,8 @@ for epoch in range(1, args.epochs + 1):
     train_error /= (count+1)
     training_loss[epoch-1]=train_loss # record the training loss
        
-
-test_loader = data_utils.DataLoader(testset(),
-                                     batch_size=args.bag_length,
-                                     shuffle=True,
-                                     **loader_kwargs) 
+#%%
+print('Load Test Set')
 pred_type='test'
 folder_list=os.listdir(os.path.join(data_path,pred_type))
 fn=0
@@ -137,17 +140,25 @@ tp=0
 res_sum=np.zeros([0,6])
 c=0
 cm=np.zeros([5,5])
-with torch.no_grad():
-    for folder in folder_list:
-        bag_label+=1
-        test_list=os.listdir(os.path.join(data_path,pred_type,folder))
-        fn+=len(test_list)
-        for file in test_list:
-            test_folder=os.path.join(data_path,pred_type,folder,file)           
-            gm.set_value("train_folder",test_folder)
-            count=0
-            
+
+for folder in folder_list:
+    bag_label+=1
+    test_list=os.listdir(os.path.join(data_path,pred_type,folder))
+    fn+=len(test_list)
+    
+    for file in test_list:
+        print(file)
+        test_folder=os.path.join(data_path,pred_type,folder,file)           
+        gm.set_value("train_folder",test_folder)
+        count=0
+        test_loader = data_utils.DataLoader(testset(),
+                                             batch_size=args.test_bag_length,
+                                             shuffle=True,
+                                             **loader_kwargs) 
+        with torch.no_grad():
             for batch_idx, (data, label) in enumerate(test_loader):
+                # print(test_folder)
+                print(len(label))
                 target=torch.tensor([batch_idx]).long()
                 if args.cuda:
                     data,target = data.cuda(),target.cuda()
@@ -164,8 +175,7 @@ with torch.no_grad():
                 if pred_res==target.cpu().numpy()[0]:
                     tp+=1  
                 break
- 
-# Convert the true labels into binary format
+#%% Convert the true labels into binary format
 lb = LabelBinarizer()
 y_true_bin = lb.fit_transform(res_sum[:,0])
 
